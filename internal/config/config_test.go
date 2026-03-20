@@ -16,8 +16,8 @@ func TestLoad_Defaults(t *testing.T) {
 }
 
 func TestLoad_EnvOverride(t *testing.T) {
-	t.Setenv("APP_HOST", "127.0.0.1")
-	t.Setenv("APP_PORT", "9090")
+	t.Setenv("OBS_PLATFORM_HOST", "127.0.0.1")
+	t.Setenv("OBS_PLATFORM_PORT", "9090")
 
 	cfg, err := Load()
 
@@ -27,7 +27,7 @@ func TestLoad_EnvOverride(t *testing.T) {
 }
 
 func TestLoad_PartialOverride(t *testing.T) {
-	t.Setenv("APP_PORT", "3000")
+	t.Setenv("OBS_PLATFORM_PORT", "3000")
 
 	cfg, err := Load()
 
