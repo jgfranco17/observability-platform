@@ -1,6 +1,4 @@
-# Devops CLI
-
-_DevOps, simplified._
+# Observability Platform Backend
 
 ![STATUS](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge)
 ![LICENSE](https://img.shields.io/badge/license-BSD3-blue?style=for-the-badge)
@@ -9,16 +7,14 @@ _DevOps, simplified._
 
 ## Introduction
 
-## Installation
+A simple observability platform backend implemented in Go. This service provides a REST
+API for storing and retrieving observability reports, designed for easy integration with
+various monitoring tools.
 
-To download the CLI, an install script has been provided.
-
-```bash
-go install github.com/jgfranco17/devops@latest
-```
+## Deployment
 
 > [!NOTE]
-> This CLI is still a beta prototype.
+> Deployment site pending.
 
 ## Testing
 
@@ -42,7 +38,3 @@ Tests are automatically run on:
 - All tests must pass before merging
 - Minimum code coverage requirements
 - Performance benchmarks must be met
-
-## License
-
-This project is licensed under the BSD-3 License. See the LICENSE file for more details.
