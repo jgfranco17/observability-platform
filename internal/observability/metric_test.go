@@ -85,6 +85,7 @@ func TestMetricTypes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, string(tc.metricType))
 		})
 	}
@@ -104,6 +105,7 @@ func TestMetric_FloatPrecision(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			metric := NewCounter("test", tc.value, nil)
 			assert.Equal(t, tc.value, metric.Value)
 		})

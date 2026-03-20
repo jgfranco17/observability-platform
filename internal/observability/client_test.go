@@ -37,10 +37,11 @@ func TestNewClient(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			client, err := NewClient("mock-system", tc.baseURL)
+			t.Parallel()
 
+			client, err := NewClient("mock-system", tc.baseURL)
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Nil(t, client)
 			} else {
 				require.NoError(t, err)

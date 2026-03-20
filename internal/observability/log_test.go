@@ -74,6 +74,7 @@ func TestLogLevels(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			log := NewEntry(tc.level, "test", nil)
 			assert.Equal(t, tc.expected, string(log.Level))
 		})
