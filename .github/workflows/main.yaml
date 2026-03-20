@@ -1,0 +1,28 @@
+name: Development CICD
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up workspace
+        uses: ./.github/actions/setup-workspace
+
+      - name: Execute tests
+        run: |
+          go clean -testcache
+          go test -cover -race -shuffle=on ./...
