@@ -75,9 +75,20 @@ func (s *Service) errorLoggerMiddleware(next http.Handler) http.Handler {
 func (s *Service) registerRoutes(database db.DatabaseClient) {
 	s.router.Route("/api", func(apiRouter chi.Router) {
 		apiRouter.Get("/health", handlers.GetHealthHandler())
+
+		// v1 endpoints
 		apiRouter.Route("/v1", func(v1Router chi.Router) {
-			v1Router.Get("/reports", handlers.HandlerGetReports(database))
-			v1Router.Post("/reports", handlers.HandlerAddReport(database))
+			// Trace endpoints
+			v1Router.Post("/traces", handlers.HandlerAddTraces(database))
+			v1Router.Get("/traces", handlers.HandlerGetTraces(database))
+
+			// Metric endpoints
+			v1Router.Post("/metrics", handlers.HandlerAddMetrics(database))
+			v1Router.Get("/metrics", handlers.HandlerGetMetrics(database))
+
+			// Log endpoints
+			v1Router.Post("/logs", handlers.HandlerAddLogs(database))
+			v1Router.Get("/logs", handlers.HandlerGetLogs(database))
 		})
 	})
 }

@@ -10,12 +10,12 @@ import (
 // GetHealth is a simple health check endpoint that returns a JSON
 // response with the status and timestamp.
 func GetHealthHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		type healthResponse struct {
-			Status    string `json:"status"`
-			Timestamp string `json:"timestamp"`
-		}
+	type healthResponse struct {
+		Status    string `json:"status"`
+		Timestamp string `json:"timestamp"`
+	}
 
+	return func(w http.ResponseWriter, r *http.Request) {
 		logger := logging.FromContext(r.Context())
 		logger.Debug("Health check requested")
 
