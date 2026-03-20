@@ -295,10 +295,161 @@ func createTestService(t *testing.T) *Service {
 	cfg := config.ServiceSettings{
 		Host: "localhost",
 		Port: 20000,
+		Auth: config.AuthSettings{
+			Enabled: false, // Disable auth for tests by default
+		},
 	}
 
 	service, err := New(ctx, cfg, logger, db.NewClient)
 	require.NoError(t, err, "Failed to create test service")
 
 	return service
+}
+
+func createTestServiceWithAuth(t *testing.T, apiKeys []string) *Service {
+	t.Helper()
+	ctx := context.Background()
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+
+	cfg := config.ServiceSettings{
+		Host: "localhost",
+		Port: 20000,
+		Auth: config.AuthSettings{
+			Enabled: true,
+			APIKeys: apiKeys,
+		},
+	}
+
+	service, err := New(ctx, cfg, logger, db.NewClient)
+	require.NoError(t, err, "Failed to create test service with auth")
+
+	return service
+}
+
+func TestAuthenticationDisabled(t *testing.T) {
+	service := createTestService(t)
+
+	testCases := []RouterTestCase{
+		{
+			Name:           "should allow requests without API key when auth disabled",
+			Method:         http.MethodGet,
+			Endpoint:       "/api/v1/traces",
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "should allow POST without API key when auth disabled",
+			Method:         http.MethodPost,
+			Endpoint:       "/api/v1/traces",
+			Body:           []interface{}{},
+			ExpectedStatus: http.StatusCreated,
+		},
+	}
+
+	tests := NewTestBuilder(t).WithRouter(service.router)
+	tests.Run(t, testCases)
+}
+
+func TestAuthenticationEnabled(t *testing.T) {
+	mockValidKey := "FAKE_KEY_FOR_TESTING_ONLY"
+	service := createTestServiceWithAuth(t, []string{mockValidKey})
+
+	testCases := []RouterTestCase{
+		{
+			Name:           "should reject requests without API key",
+			Method:         http.MethodGet,
+			Endpoint:       "/api/v1/traces",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "should reject requests with invalid API key",
+			Method:         http.MethodGet,
+			Endpoint:       "/api/v1/traces",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "should allow requests with valid API key",
+			Method:         http.MethodGet,
+			Endpoint:       "/api/v1/traces",
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "should allow POST with valid API key",
+			Method:         http.MethodPost,
+			Endpoint:       "/api/v1/metrics",
+			Body:           []interface{}{},
+			ExpectedStatus: http.StatusCreated,
+		},
+	}
+
+	// Create a custom builder that can add headers
+	builder := NewTestBuilder(t).WithRouter(service.router)
+
+	// Test without API key
+	t.Run(testCases[0].Name, func(t *testing.T) {
+		req, err := http.NewRequest(testCases[0].Method, testCases[0].Endpoint, nil)
+		require.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		service.router.ServeHTTP(rr, req)
+
+		assert.Equal(t, testCases[0].ExpectedStatus, rr.Code)
+	})
+
+	// Test with invalid API key
+	t.Run(testCases[1].Name, func(t *testing.T) {
+		req, err := http.NewRequest(testCases[1].Method, testCases[1].Endpoint, nil)
+		require.NoError(t, err)
+		req.Header.Set("X-API-Key", "WRONG_KEY")
+
+		rr := httptest.NewRecorder()
+		service.router.ServeHTTP(rr, req)
+
+		assert.Equal(t, testCases[1].ExpectedStatus, rr.Code)
+	})
+
+	// Test with valid API key (GET)
+	t.Run(testCases[2].Name, func(t *testing.T) {
+		req, err := http.NewRequest(testCases[2].Method, testCases[2].Endpoint, nil)
+		require.NoError(t, err)
+		req.Header.Set("X-API-Key", mockValidKey)
+
+		rr := httptest.NewRecorder()
+		service.router.ServeHTTP(rr, req)
+
+		assert.Equal(t, testCases[2].ExpectedStatus, rr.Code)
+	})
+
+	// Test with valid API key (POST)
+	t.Run(testCases[3].Name, func(t *testing.T) {
+		body := bytes.NewBufferString("[]")
+		req, err := http.NewRequest(testCases[3].Method, testCases[3].Endpoint, body)
+		require.NoError(t, err)
+		req.Header.Set("X-API-Key", mockValidKey)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		service.router.ServeHTTP(rr, req)
+
+		assert.Equal(t, testCases[3].ExpectedStatus, rr.Code)
+	})
+
+	_ = builder // Keep for consistency
+}
+
+func TestHealthEndpointNoAuth(t *testing.T) {
+	// Health endpoint should never require auth
+	service := createTestServiceWithAuth(t, []string{"EXAMPLE_KEY"})
+
+	testCases := []RouterTestCase{
+		{
+			Name:           "should allow health check without API key",
+			Method:         http.MethodGet,
+			Endpoint:       "/api/health",
+			ExpectedStatus: http.StatusOK,
+		},
+	}
+
+	tests := NewTestBuilder(t).WithRouter(service.router)
+	tests.Run(t, testCases)
 }

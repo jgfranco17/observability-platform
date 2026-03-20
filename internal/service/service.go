@@ -15,9 +15,10 @@ import (
 )
 
 type Service struct {
-	router *chi.Mux
-	logger *logrus.Logger
-	config config.ServiceSettings
+	router  *chi.Mux
+	logger  *logrus.Logger
+	config  config.ServiceSettings
+	apiKeys map[string]bool // Fast lookup for API keys
 }
 
 func New(ctx context.Context, cfg config.ServiceSettings, logger *logrus.Logger, dbFactory db.DatabaseClientFactory) (*Service, error) {
@@ -25,10 +26,20 @@ func New(ctx context.Context, cfg config.ServiceSettings, logger *logrus.Logger,
 	if err != nil {
 		return nil, fmt.Errorf("failed to create database client: %w", err)
 	}
+
+	// Build API key lookup map
+	apiKeys := make(map[string]bool)
+	for _, key := range cfg.Auth.APIKeys {
+		if key != "" {
+			apiKeys[key] = true
+		}
+	}
+
 	s := &Service{
-		router: chi.NewRouter(),
-		logger: logger,
-		config: cfg,
+		router:  chi.NewRouter(),
+		logger:  logger,
+		config:  cfg,
+		apiKeys: apiKeys,
 	}
 	s.router.Use(middleware.RequestID)
 	s.router.Use(middleware.Recoverer)
@@ -72,12 +83,51 @@ func (s *Service) errorLoggerMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// authMiddleware validates API keys when authentication is enabled.
+// Expects API key in X-API-Key header.
+func (s *Service) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip auth if disabled
+		if !s.config.Auth.Enabled {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		apiKey := r.Header.Get("X-API-Key")
+		if apiKey == "" {
+			s.logger.WithFields(logrus.Fields{
+				"method": r.Method,
+				"path":   r.URL.Path,
+				"remote": r.RemoteAddr,
+			}).Warn("Request missing API key")
+			http.Error(w, "unauthorized: missing API key", http.StatusUnauthorized)
+			return
+		}
+
+		if !s.apiKeys[apiKey] {
+			s.logger.WithFields(logrus.Fields{
+				"method": r.Method,
+				"path":   r.URL.Path,
+				"remote": r.RemoteAddr,
+			}).Warn("Request with invalid API key")
+			http.Error(w, "unauthorized: invalid API key", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Service) registerRoutes(database db.DatabaseClient) {
 	s.router.Route("/api", func(apiRouter chi.Router) {
+		// Health endpoint - no auth required
 		apiRouter.Get("/health", handlers.GetHealthHandler())
 
-		// v1 endpoints
+		// v1 endpoints - with auth
 		apiRouter.Route("/v1", func(v1Router chi.Router) {
+			// Apply auth middleware to all v1 routes
+			v1Router.Use(s.authMiddleware)
+
 			// Trace endpoints
 			v1Router.Post("/traces", handlers.HandlerAddTraces(database))
 			v1Router.Get("/traces", handlers.HandlerGetTraces(database))
