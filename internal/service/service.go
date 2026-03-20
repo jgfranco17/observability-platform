@@ -76,8 +76,8 @@ func (s *Service) registerRoutes(database db.DatabaseClient) {
 	s.router.Route("/api", func(apiRouter chi.Router) {
 		apiRouter.Get("/health", handlers.GetHealthHandler())
 		apiRouter.Route("/v1", func(v1Router chi.Router) {
-			v1Router.Get("/observability", handlers.HandlerGetReports(database))
-			v1Router.Post("/observability", handlers.HandlerAddReport(database))
+			v1Router.Get("/reports", handlers.HandlerGetReports(database))
+			v1Router.Post("/reports", handlers.HandlerAddReport(database))
 		})
 	})
 }
