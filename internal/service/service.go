@@ -33,6 +33,7 @@ func New(ctx context.Context, cfg config.ServiceSettings, logger *logrus.Logger,
 	s.router.Use(middleware.RequestID)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(s.loggerMiddleware)
+	s.router.Use(s.errorLoggerMiddleware)
 	s.registerRoutes(database)
 	return s, nil
 }
@@ -52,14 +53,31 @@ func (s *Service) loggerMiddleware(next http.Handler) http.Handler {
 		s.logger.WithFields(logrus.Fields{
 			"method": r.Method,
 			"path":   r.URL.Path,
-		}).Debug("Incoming request")
+		}).Info("Received request")
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
+func (s *Service) errorLoggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		next.ServeHTTP(ww, r)
+		if status := ww.Status(); status >= http.StatusBadRequest {
+			s.logger.WithFields(logrus.Fields{
+				"method": r.Method,
+				"path":   r.URL.Path,
+				"status": status,
+			}).Error("Request encountered an error")
+		}
+	})
+}
+
 func (s *Service) registerRoutes(database db.DatabaseClient) {
-	s.router.Get("/health", handlers.GetHealthHandler())
-	s.router.Route("/v1", func(v1Router chi.Router) {
-		v1Router.Get("/observability", handlers.NewObservabilityHandler(database))
+	s.router.Route("/api", func(apiRouter chi.Router) {
+		apiRouter.Get("/health", handlers.GetHealthHandler())
+		apiRouter.Route("/v1", func(v1Router chi.Router) {
+			v1Router.Get("/observability", handlers.HandlerGetReports(database))
+			v1Router.Post("/observability", handlers.HandlerAddReport(database))
+		})
 	})
 }

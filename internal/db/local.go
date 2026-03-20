@@ -26,3 +26,13 @@ func (ic *internalClient) StoreReport(ctx context.Context, report observability.
 	ic.storage[report.ID] = report
 	return nil
 }
+
+func (ic *internalClient) GetAllReports(ctx context.Context) ([]observability.Report, error) {
+	ic.mu.RLock()
+	defer ic.mu.RUnlock()
+	reports := make([]observability.Report, 0, len(ic.storage))
+	for _, report := range ic.storage {
+		reports = append(reports, report)
+	}
+	return reports, nil
+}

@@ -19,7 +19,7 @@ func GetHealthHandler() http.HandlerFunc {
 		logger := logging.FromContext(r.Context())
 		logger.Debug("Health check requested")
 
-		writeJSON(w, http.StatusOK, healthResponse{
+		respondWithJSON(w, http.StatusOK, healthResponse{
 			Status:    "healthy",
 			Timestamp: time.Now().Format(time.DateTime),
 		})

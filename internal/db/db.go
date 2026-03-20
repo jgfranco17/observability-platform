@@ -10,6 +10,7 @@ import (
 // DatabaseClient interface for database operations
 type DatabaseClient interface {
 	StoreReport(ctx context.Context, report observability.Report) error
+	GetAllReports(ctx context.Context) ([]observability.Report, error)
 }
 
 type DatabaseClientFactory func(ctx context.Context) (DatabaseClient, error)

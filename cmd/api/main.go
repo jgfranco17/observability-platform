@@ -14,7 +14,6 @@ import (
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	logger := logging.New(os.Stderr, logrus.InfoLevel)
 
 	cfg, err := config.Load()
